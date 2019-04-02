@@ -1,0 +1,19 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: kahttp-deployment
+spec:
+  selector:
+    matchLabels:
+      app: kahttp
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: kahttp
+    spec:
+      containers:
+      - name: kahttp
+        image: nordixorg/kahttp:v0.1
+        ports:
+        - containerPort: 80

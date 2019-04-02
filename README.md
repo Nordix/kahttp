@@ -40,6 +40,13 @@ silence keep-alive is used. A steady stream os SYNs indicates that
 keep-alive is not used.
 
 
+Deploy a `kahttp` server on Kubernetes;
+```
+kubeclt apply -f https://raw.githubusercontent.com/Nordix/kahttp/master/kahttp.yaml
+```
+
+NOTE: The server is very primitive and is intended for simple tests only.
+
 
 ## Measure keep-alive connections
 
