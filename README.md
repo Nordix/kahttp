@@ -42,7 +42,7 @@ keep-alive is not used.
 
 Deploy a `kahttp` server on Kubernetes;
 ```
-kubeclt apply -f https://raw.githubusercontent.com/Nordix/kahttp/master/kahttp.yaml
+kubectl apply -f https://raw.githubusercontent.com/Nordix/kahttp/master/kahttp.yaml
 ```
 
 NOTE: The server is very primitive and is intended for simple tests only.
@@ -60,8 +60,8 @@ keep-alive time is limited (but different) on servers so to make sure
 connections are kept a certain rate per client must be maintained.
 
 The key metric for measuring keep-alive connections is `Dials`. This
-is the number of actual TCP connects that the clients do. Below is an
-example where all connections are kept;
+is the total number of actual TCP connects that the clients do. Below
+is an example where all connections are kept;
 
 ```
 > kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nclients 40 -timeout 10s | jq .
@@ -88,7 +88,7 @@ Clients act/fail/Dials: 40/0/40, Packets send/rec/dropped: 3600/3600/0
 }
 ```
 
-In this case we have 40 clients making 3600 requests in total but the
+In this case we have 40 clients making 3999 requests in total but the
 number of `Dials` is 40, so each client make only one connection which
 is kept alive for the entire run.
 
