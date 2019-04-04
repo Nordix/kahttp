@@ -11,9 +11,8 @@ simultaneous client connectons a http server or proxy can handle.
 ```
 go get github.com/Nordix/mconnect
 cd $GOPATH/src/github.com/Nordix/kahttp
-ver=$(date +%F:%T)
 CGO_ENABLED=0 GOOS=linux go install -a \
-  -ldflags "-extldflags '-static' -X main.version=$ver" \
+  -ldflags "-extldflags '-static' -X main.version=$(date +%F:%T)" \
   github.com/Nordix/kahttp/cmd/kahttp
 strip $GOPATH/bin/kahttp
 ```
@@ -27,7 +26,7 @@ Local usage;
 kahttp -server -address [::]:5080
 # In another shell;
 wget -q -O - http://127.0.0.1:5080/
-kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nconn 40 -timeout 10s | jq .
+kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nclients 40 -timeout 10s | jq .
 # In yet another shell;
 tcpdump -ni lo 'tcp[tcpflags] == tcp-syn'
 # Or for ipv6;
@@ -139,6 +138,49 @@ loopback interface as described for
 use;
 
 ```
-kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nconn 40 \
+kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nclients 40 \
   -timeout 10s -scrcidr 222.222.222.0/24
 ```
+
+## Https
+
+`Kahttp` disables certificate verification because the server is most
+likely using a self-signed certificate. There is currently no way of
+enabling certificate verification in the `kahttp` client.
+
+The `kahttp` server will expose a https server if *both* `-https_key`
+and `-https_cert` are specified (or the corresponding environment
+variables $KAHTTP_KEY and $KAHTTP_CERT are set). The address
+(including the port) can be specified with the `-https_addr` option
+(default ":5443").
+
+Implementation is based on [this](https://github.com/denji/golang-tls)
+description.
+
+Examle;
+```
+export KAHTTP_KEY=/tmp/server.key
+export KAHTTP_CERT=/tmp/server.crt
+openssl genrsa -out $KAHTTP_KEY 2048
+openssl req -new -x509 -sha256 -key $KAHTTP_KEY -out $KAHTTP_CERT -days 3650
+kahttp -server -address [::]:5080
+# In another shell;
+wget --no-check-certificate -qO- https://[::1]:5443/
+# Or;
+kahttp -address https://[::1]:5443/ -monitor -rate 400 -nclients 40 -timeout 10s | jq .
+```
+
+If you use another client, e.g. `wget` you can verify the self-signed
+certificate. First the "Common name" used must match the request
+url. This can be done by updating `/etc/hosts`, for example;
+
+```
+127.0.1.2       kahttp.localdomain
+```
+
+Second you must provide the generated certificate to the client;
+
+```
+wget -q --ca-certificate=/tmp/server.crt -O- https://kahttp.localdomain:5443/
+```
+

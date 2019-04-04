@@ -6,24 +6,25 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Nordix/mconnect/pkg/rndip"
 	"golang.org/x/time/rate"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-	"net/http"
-	"github.com/Nordix/mconnect/pkg/rndip"
 )
 
-var version string = "unknown"
+var version = "unknown"
 
 const helptext = `
 Kahttp attempts to setup many http connections and keep them alive.
@@ -48,6 +49,9 @@ type config struct {
 	stats     *string
 	srccidr   *string
 	rndip     *rndip.Rndip
+	httpsKey  *string
+	httpsCert *string
+	httpsAddr *string
 }
 
 func main() {
@@ -67,6 +71,11 @@ func main() {
 	cmd.psize = &psize
 	cmd.rate = flag.Float64("rate", 10.0, "Rate in http-requests/Second")
 	cmd.srccidr = flag.String("srccidr", "", "Source CIDR")
+	cmd.httpsKey = flag.String(
+		"https_key", os.Getenv("KAHTTP_KEY"), "Https secret key file")
+	cmd.httpsCert = flag.String(
+		"https_cert", os.Getenv("KAHTTP_CERT"), "Https certificate file")
+	cmd.httpsAddr = flag.String("https_addr", ":5443", "Https address")
 
 	flag.Parse()
 	if len(os.Args) < 2 {
@@ -85,7 +94,6 @@ func main() {
 		os.Exit(cmd.clientMain())
 	}
 }
-
 
 // ----------------------------------------------------------------------
 // Client
@@ -133,7 +141,7 @@ func (c *config) clientMain() int {
 			log.Fatal("Set source failed:", err)
 		}
 	}
-	
+
 	var wg sync.WaitGroup
 	wg.Add(*c.nconn)
 	for i := 0; i < *c.nconn; i++ {
@@ -176,13 +184,12 @@ func (c *config) client(ctx context.Context, wg *sync.WaitGroup, s *statistics) 
 			sadr := fmt.Sprintf("%s:0", c.rndip.GetIPString())
 			if saddr, err := net.ResolveTCPAddr("tcp", sadr); err != nil {
 				log.Fatal(err)
-				return
 			} else {
 				cd.localAddr = saddr
 			}
 		}
 
-		conn := newHttpConn(cd)
+		conn := newHTTPConn(cd)
 
 		// Connect with re-try and back-off
 		backoff := 100 * time.Millisecond
@@ -250,17 +257,16 @@ func newLimiter(ctx context.Context, r float64, psize int) *rate.Limiter {
 	return lim
 }
 
-
 // ----------------------------------------------------------------------
 // Http Connection
 
 type httpConn struct {
-	cd   *connData
+	cd      *connData
 	address string
-	client *http.Client
+	client  *http.Client
 }
 
-func newHttpConn(cd *connData) ctConn {
+func newHTTPConn(cd *connData) ctConn {
 	return &httpConn{
 		cd: cd,
 	}
@@ -276,15 +282,20 @@ func (c *httpConn) Connect(ctx context.Context, address string) error {
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 			LocalAddr: c.cd.localAddr,
-			Control: myControl,
+			Control:   myControl,
 		}).DialContext,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
 	c.client = &http.Client{Transport: tr}
 	c.address = address
 	return nil
 }
+
 // https://stackoverflow.com/questions/52423335/define-tcp-socket-options/52426887
 var nDials uint32
+
 func myControl(network, address string, c syscall.RawConn) error {
 	atomic.AddUint32(&nDials, 1)
 	return nil
@@ -297,7 +308,7 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 	}
 
 	for {
-		
+
 		if lim.WaitN(ctx, c.cd.psize) != nil {
 			break
 		}
@@ -328,7 +339,22 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 // Server
 
 type myHandler int
+
 func (c *config) serverMain() int {
+	if *c.httpsKey != "" && *c.httpsCert != "" {
+		go func() {
+			s := &http.Server{
+				Addr:           *c.httpsAddr,
+				Handler:        myHandler(1),
+				ReadTimeout:    10 * time.Second,
+				WriteTimeout:   10 * time.Second,
+				IdleTimeout:    10 * time.Second,
+				MaxHeaderBytes: 1 << 20,
+			}
+			log.Fatal(s.ListenAndServeTLS(*c.httpsCert, *c.httpsKey))
+		}()
+	}
+
 	s := &http.Server{
 		Addr:           *c.addr,
 		Handler:        myHandler(1),
@@ -385,10 +411,10 @@ func newStats(
 	packetSize uint32) *statistics {
 
 	s := &statistics{
-		Started:     time.Now(),
-		Duration:    duration,
-		Rate:        rate,
-		Clients: connections,
+		Started:  time.Now(),
+		Duration: duration,
+		Rate:     rate,
+		Clients:  connections,
 	}
 	return s
 }
@@ -411,4 +437,3 @@ func (s *statistics) reportStats() {
 	s.Dials = nDials
 	json.NewEncoder(os.Stdout).Encode(s)
 }
-
