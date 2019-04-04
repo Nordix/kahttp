@@ -46,6 +46,8 @@ kubectl apply -f https://raw.githubusercontent.com/Nordix/kahttp/master/kahttp.y
 
 NOTE: The server is very primitive and is intended for simple tests only.
 
+The server will use an internal self-signed certificate for https.
+
 
 ## Measure keep-alive connections
 

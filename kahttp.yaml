@@ -14,6 +14,12 @@ spec:
     spec:
       containers:
       - name: kahttp
-        image: nordixorg/kahttp:v0.1
+        image: nordixorg/kahttp:v0.2
         ports:
         - containerPort: 80
+        - containerPort: 443
+        env:
+          - name: KAHTTP_KEY
+            value: "/etc/cert/server.key"
+          - name: KAHTTP_CERT
+            value: "/etc/cert/server.crt"
