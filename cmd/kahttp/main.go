@@ -338,14 +338,18 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 // ----------------------------------------------------------------------
 // Server
 
-type myHandler int
+type myHandler string
 
 func (c *config) serverMain() int {
+	var serverHdr = "Kahttp/" + version
+	if hostName, err := os.Hostname(); err == nil {
+		serverHdr += ("@" + hostName)
+	}
 	if *c.httpsKey != "" && *c.httpsCert != "" {
 		go func() {
 			s := &http.Server{
 				Addr:           *c.httpsAddr,
-				Handler:        myHandler(1),
+				Handler:        myHandler(serverHdr),
 				ReadTimeout:    10 * time.Second,
 				WriteTimeout:   10 * time.Second,
 				IdleTimeout:    10 * time.Second,
@@ -357,7 +361,7 @@ func (c *config) serverMain() int {
 
 	s := &http.Server{
 		Addr:           *c.addr,
-		Handler:        myHandler(1),
+		Handler:        myHandler(serverHdr),
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    10 * time.Second,
@@ -368,6 +372,7 @@ func (c *config) serverMain() int {
 }
 
 func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Server", string(x))
 	fmt.Fprintf(w, "Method: %s\n", r.Method)
 	fmt.Fprintf(w, "URL: %s\n", r.URL)
 	fmt.Fprintf(w, "Proto: %s\n", r.Proto)
@@ -376,6 +381,7 @@ func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Host: %s\n", r.Host)
 	fmt.Fprintf(w, "RemoteAddr: %s\n", r.RemoteAddr)
 	fmt.Fprintf(w, "RequestURI: %s\n", r.RequestURI)
+	fmt.Fprintf(w, "Server: %s\n", x)
 	for k, v := range r.Header {
 		fmt.Fprintf(w, "%s: %s\n", k, v)
 	}
