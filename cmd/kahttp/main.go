@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"strings"
 	"time"
 )
 
@@ -39,6 +40,7 @@ Options;
 
 type config struct {
 	isServer  *bool
+	hostStats *bool
 	addr      *string
 	nconn     *int
 	version   *bool
@@ -62,6 +64,7 @@ func main() {
 
 	var cmd config
 	cmd.isServer = flag.Bool("server", false, "Act as server")
+	cmd.hostStats = flag.Bool("host_stats", false, "Collect server host statistics")
 	cmd.addr = flag.String("address", "http://127.0.0.1:5080/", "Server address")
 	cmd.nconn = flag.Int("nclients", 1, "Number of http clients")
 	cmd.version = flag.Bool("version", false, "Print version and quit")
@@ -124,7 +127,7 @@ var nConn uint32
 
 func (c *config) clientMain() int {
 
-	s := newStats(*c.timeout, *c.rate, *c.nconn, uint32(*c.psize))
+	s := newStats(*c.timeout, *c.rate, *c.nconn, uint32(*c.psize), *c.hostStats)
 	rand.Seed(time.Now().UnixNano())
 
 	// The connection array may contain re-connects
@@ -319,6 +322,27 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 		}
 		defer resp.Body.Close()
 
+		if s.Hosts != nil {
+			// Collect server-host statistics
+			if server, ok := resp.Header["Server"]; ok && len(server) == 1 {
+				sh := server[0]
+				// Only kahttp server will do
+				if strings.HasPrefix(sh, "Kahttp/") {
+					i := strings.Split(sh, "@")
+					if len(i) == 2 {
+						h := i[1]
+						s.mutex.Lock()
+						if val, ok := s.Hosts[h]; ok {
+							s.Hosts[h] = (val + 1)
+						} else {
+							s.Hosts[h] = 1
+						}
+						s.mutex.Unlock()
+					}
+				}
+			}
+		}
+
 		s.sent(1)
 
 		for lim.AllowN(time.Now(), c.cd.psize) {
@@ -401,6 +425,8 @@ type statistics struct {
 	Received          uint32
 	Dropped           uint32
 	FailedConnects    uint
+	mutex             sync.Mutex
+	Hosts             map[string]int  `json:",omitempty"`
 }
 
 type sample struct {
@@ -414,13 +440,17 @@ func newStats(
 	duration time.Duration,
 	rate float64,
 	connections int,
-	packetSize uint32) *statistics {
+	packetSize uint32,
+	hostStats bool) *statistics {
 
 	s := &statistics{
 		Started:  time.Now(),
 		Duration: duration,
 		Rate:     rate,
 		Clients:  connections,
+	}
+	if hostStats {
+		s.Hosts = make(map[string]int)
 	}
 	return s
 }
