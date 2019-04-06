@@ -18,10 +18,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
-	"strings"
 	"time"
 )
 
@@ -41,6 +41,7 @@ Options;
 type config struct {
 	isServer  *bool
 	hostStats *bool
+	disableKA *bool
 	addr      *string
 	nconn     *int
 	version   *bool
@@ -65,6 +66,7 @@ func main() {
 	var cmd config
 	cmd.isServer = flag.Bool("server", false, "Act as server")
 	cmd.hostStats = flag.Bool("host_stats", false, "Collect server host statistics")
+	cmd.disableKA = flag.Bool("disable_ka", false, "Disable keep-alive")
 	cmd.addr = flag.String("address", "http://127.0.0.1:5080/", "Server address")
 	cmd.nconn = flag.Int("nclients", 1, "Number of http clients")
 	cmd.version = flag.Bool("version", false, "Print version and quit")
@@ -108,18 +110,16 @@ type ctConn interface {
 
 // TODO: Use the "connstats" struct in the statistics section
 type connData struct {
-	id               uint32
-	psize            int
-	rate             float64
-	sent             uint32
-	nPacketsReceived uint32
-	nPacketsDropped  uint32
-	err              error
-	started          time.Time
-	connected        time.Time
-	ended            time.Time
-	nFailedConnect   uint
-	localAddr        net.Addr
+	id             uint32
+	psize          int
+	rate           float64
+	sent           uint32
+	err            error
+	started        time.Time
+	connected      time.Time
+	ended          time.Time
+	nFailedConnect uint
+	localAddr      net.Addr
 }
 
 var cData []connData
@@ -192,7 +192,7 @@ func (c *config) client(ctx context.Context, wg *sync.WaitGroup, s *statistics) 
 			}
 		}
 
-		conn := newHTTPConn(cd)
+		conn := newHTTPConn(cd, c)
 
 		// Connect with re-try and back-off
 		backoff := 100 * time.Millisecond
@@ -265,13 +265,15 @@ func newLimiter(ctx context.Context, r float64, psize int) *rate.Limiter {
 
 type httpConn struct {
 	cd      *connData
+	c       *config
 	address string
 	client  *http.Client
 }
 
-func newHTTPConn(cd *connData) ctConn {
+func newHTTPConn(cd *connData, c *config) ctConn {
 	return &httpConn{
 		cd: cd,
+		c:  c,
 	}
 }
 
@@ -290,6 +292,9 @@ func (c *httpConn) Connect(ctx context.Context, address string) error {
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
+	}
+	if *c.c.disableKA {
+		tr.DisableKeepAlives = true
 	}
 	c.client = &http.Client{Transport: tr}
 	c.address = address
@@ -379,6 +384,9 @@ func (c *config) serverMain() int {
 				IdleTimeout:    10 * time.Second,
 				MaxHeaderBytes: 1 << 20,
 			}
+			if *c.disableKA {
+				s.SetKeepAlivesEnabled(false)
+			}
 			log.Fatal(s.ListenAndServeTLS(*c.httpsCert, *c.httpsKey))
 		}()
 	}
@@ -390,6 +398,9 @@ func (c *config) serverMain() int {
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
+	}
+	if *c.disableKA {
+		s.SetKeepAlivesEnabled(false)
 	}
 	log.Fatal(s.ListenAndServe())
 	return 0
@@ -426,7 +437,7 @@ type statistics struct {
 	Dropped           uint32
 	FailedConnects    uint
 	mutex             sync.Mutex
-	Hosts             map[string]int  `json:",omitempty"`
+	Hosts             map[string]int `json:",omitempty"`
 }
 
 type sample struct {
