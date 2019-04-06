@@ -93,35 +93,56 @@ In this case we have 40 clients making 3999 requests in total but the
 number of `Dials` is 40, so each client make only one connection which
 is kept alive for the entire run.
 
-This shows the case where there is no keep-alive;
+This shows the case where keep-alive is disabled using the
+`-disable_ka` flag;
 
 ```
-> kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nclients 40 -timeout 10s | jq .
-Clients act/fail/Dials: 40/0/400, Packets send/rec/dropped: 399/399/0
-Clients act/fail/Dials: 40/0/800, Packets send/rec/dropped: 799/799/0
-Clients act/fail/Dials: 40/0/1200, Packets send/rec/dropped: 1199/1199/0
-Clients act/fail/Dials: 40/0/1600, Packets send/rec/dropped: 1599/1599/0
-Clients act/fail/Dials: 40/0/2000, Packets send/rec/dropped: 1999/1999/0
-Clients act/fail/Dials: 40/0/2400, Packets send/rec/dropped: 2400/2400/0
-Clients act/fail/Dials: 40/0/2800, Packets send/rec/dropped: 2799/2799/0
-Clients act/fail/Dials: 40/0/3200, Packets send/rec/dropped: 3200/3200/0
-Clients act/fail/Dials: 40/0/3600, Packets send/rec/dropped: 3600/3600/0
+# kahttp -nclients 10 -monitor -address https://10.0.0.2/ -host_stats -disable_ka | jq .
+Clients act/fail/Dials: 10/0/10, Packets send/rec/dropped: 10/10/0
+Clients act/fail/Dials: 10/0/20, Packets send/rec/dropped: 20/20/0
+Clients act/fail/Dials: 10/0/30, Packets send/rec/dropped: 30/30/0
+Clients act/fail/Dials: 10/0/40, Packets send/rec/dropped: 40/40/0
+Clients act/fail/Dials: 10/0/50, Packets send/rec/dropped: 50/50/0
+Clients act/fail/Dials: 10/0/60, Packets send/rec/dropped: 60/60/0
+Clients act/fail/Dials: 10/0/70, Packets send/rec/dropped: 70/70/0
+Clients act/fail/Dials: 10/0/80, Packets send/rec/dropped: 80/80/0
+Clients act/fail/Dials: 10/0/90, Packets send/rec/dropped: 90/90/0
 {
-  "Started": "2019-04-02T13:16:37.443570632+02:00",
-  "Duration": 10001866073,
-  "Rate": 400,
-  "Clients": 40,
-  "Dials": 4000,
+  "Started": "2019-04-06T08:18:09.44414217Z",
+  "Duration": 9897737610,
+  "Rate": 10,
+  "Clients": 10,
+  "Dials": 100,
   "FailedConnections": 0,
-  "Sent": 4000,
-  "Received": 4000,
+  "Sent": 100,
+  "Received": 100,
   "Dropped": 0,
-  "FailedConnects": 0
+  "FailedConnects": 0,
+  "Hosts": {
+    "kahttp-deployment-ff8b6966-2cjw6": 26,
+    "kahttp-deployment-ff8b6966-j45fw": 24,
+    "kahttp-deployment-ff8b6966-plvqn": 26,
+    "kahttp-deployment-ff8b6966-t867d": 24
+  }
 }
 ```
 
 The number of `Dials` is equal to the number of `Sent` requests. This
 means that no connection is kept alive.
+
+### Server host statistics
+
+The example above uses the `-host_stats` to get server host
+statistics. Server host statistics only works if the server is
+`kahttp`. The `kahttp` server returns the hostname of the server in
+the body and in the `Server:` http header. The `kahttp` client collect
+the statistics and presents the number of requests to each host.
+
+This functions is not usable for keep-alive testing (the main purpose
+of `kahttp`) but may be used for instance to test a
+[canary](https://github.com/heptio/contour/blob/master/docs/ingressroute.md#upstream-weighting)
+setup. When `-host_stats` is used you should most likely also disable
+keep-alive with `-disable_ka`.
 
 
 ## Multiple source addresses
