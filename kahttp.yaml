@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: kahttp
-        image: nordixorg/kahttp:v0.3
+        image: nordixorg/kahttp:v0.4
         ports:
         - containerPort: 80
         - containerPort: 443

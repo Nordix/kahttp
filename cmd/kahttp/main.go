@@ -57,6 +57,8 @@ type config struct {
 	httpsAddr *string
 }
 
+const hostHeader = "X-Kahttp-Server-Host"
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), helptext)
@@ -329,8 +331,8 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 
 		if s.Hosts != nil {
 			// Collect server-host statistics
-			if server, ok := resp.Header["Server"]; ok && len(server) == 1 {
-				sh := server[0]
+			if host, ok := resp.Header[hostHeader]; ok && len(host) == 1 {
+				sh := host[0]
 				// Only kahttp server will do
 				if strings.HasPrefix(sh, "Kahttp/") {
 					i := strings.Split(sh, "@")
@@ -407,7 +409,7 @@ func (c *config) serverMain() int {
 }
 
 func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Server", string(x))
+	w.Header().Set(hostHeader, string(x))
 	fmt.Fprintf(w, "Method: %s\n", r.Method)
 	fmt.Fprintf(w, "URL: %s\n", r.URL)
 	fmt.Fprintf(w, "Proto: %s\n", r.Proto)
@@ -416,7 +418,7 @@ func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Host: %s\n", r.Host)
 	fmt.Fprintf(w, "RemoteAddr: %s\n", r.RemoteAddr)
 	fmt.Fprintf(w, "RequestURI: %s\n", r.RequestURI)
-	fmt.Fprintf(w, "Server: %s\n", x)
+	fmt.Fprintf(w, "%s: %s\n", hostHeader, x)
 	for k, v := range r.Header {
 		fmt.Fprintf(w, "%s: %s\n", k, v)
 	}

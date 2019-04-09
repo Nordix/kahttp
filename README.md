@@ -135,8 +135,9 @@ means that no connection is kept alive.
 The example above uses the `-host_stats` to get server host
 statistics. Server host statistics only works if the server is
 `kahttp`. The `kahttp` server returns the hostname of the server in
-the body and in the `Server:` http header. The `kahttp` client collect
-the statistics and presents the number of requests to each host.
+the body and in the `X-Kahttp-Server-Host:` http header. The `kahttp`
+client collect the statistics and presents the number of requests to
+each host.
 
 This functions is not usable for keep-alive testing (the main purpose
 of `kahttp`) but may be used for instance to test a
