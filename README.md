@@ -208,3 +208,15 @@ Second you must provide the generated certificate to the client;
 wget -q --ca-certificate=/tmp/server.crt -O- https://kahttp.localdomain:5443/
 ```
 
+### Http2
+
+The `-http2` flag can be used to enforce HTTP/2.0 on the client
+side. Note that http2 must be used with https;
+
+```
+# (start the server as above)
+curl --insecure --http2 https://[::1]:5443/
+kahttp -address https://[::1]:5443/ -monitor -http2 -rate 400 -nclients 40 -timeout 10s | jq .
+# This will fail since http is used;
+kahttp -address http://[::1]:5443/ -http2
+```

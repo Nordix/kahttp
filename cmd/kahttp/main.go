@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Nordix/mconnect/pkg/rndip"
+	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 	"io/ioutil"
 	"log"
@@ -42,6 +43,7 @@ type config struct {
 	isServer  *bool
 	hostStats *bool
 	disableKA *bool
+	http2     *bool
 	addr      *string
 	nconn     *int
 	version   *bool
@@ -69,6 +71,7 @@ func main() {
 	cmd.isServer = flag.Bool("server", false, "Act as server")
 	cmd.hostStats = flag.Bool("host_stats", false, "Collect server host statistics")
 	cmd.disableKA = flag.Bool("disable_ka", false, "Disable keep-alive")
+	cmd.http2 = flag.Bool("http2", false, "Use HTTP/2 as client")
 	cmd.addr = flag.String("address", "http://127.0.0.1:5080/", "Server address")
 	cmd.nconn = flag.Int("nclients", 1, "Number of http clients")
 	cmd.version = flag.Bool("version", false, "Print version and quit")
@@ -300,6 +303,11 @@ func (c *httpConn) Connect(ctx context.Context, address string) error {
 	}
 	c.client = &http.Client{Transport: tr}
 	c.address = address
+	if *c.c.http2 {
+		if err := http2.ConfigureTransport(tr); err != nil {
+			log.Fatal(err)
+		}
+	}
 	return nil
 }
 
@@ -328,6 +336,12 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 			return err
 		}
 		defer resp.Body.Close()
+
+		if *c.c.http2 {
+			if !strings.HasPrefix(resp.Proto, "HTTP/2.") {
+				log.Fatalf("Incorrect Proto in response; [%s]\n", resp.Proto)
+			}
+		}
 
 		if s.Hosts != nil {
 			// Collect server-host statistics
