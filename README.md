@@ -208,6 +208,38 @@ Second you must provide the generated certificate to the client;
 wget -q --ca-certificate=/tmp/server.crt -O- https://kahttp.localdomain:5443/
 ```
 
+### Client certificate, mTLS
+
+Kahttp accepts and verifies client certificates if given
+(`tls.VerifyClientCertIfGiven`). Http requests without client
+certificate or with a correct certificate are accepted but requests
+with an invalid certificate are rejected.
+
+```
+wget --ca-certificate=/tmp/server.crt \
+ --certificate=/tmp/server.crt --private-key=/tmp/server.key \
+ -qO- https://[::1]:5443/
+...
+Tls-nPeerCertificates: 1
+```
+
+The same certificate as for the server is presented as a client
+certificate which is valid and the (faked) header
+`Tls-nPeerCertificates` indicates that a client certificate is used.
+
+If an invalid client certificate is used the conneciton fails;
+
+```
+wget --ca-certificate=/tmp/server.crt \
+ --certificate=/tmp/gurk.crt --private-key=/tmp/gurk.key \
+ -O- https://[::1]:5443/
+--2019-05-15 10:45:01--  https://[::1]:5443/
+Connecting to [::1]:5443... connected.
+OpenSSL: error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate
+Unable to establish SSL connection.
+```
+
+
 ### Http2
 
 The `-http2` flag can be used to enforce HTTP/2.0 on the client
