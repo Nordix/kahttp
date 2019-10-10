@@ -46,7 +46,8 @@ kubectl apply -f https://raw.githubusercontent.com/Nordix/kahttp/master/kahttp.y
 
 NOTE: The server is very primitive and is intended for simple tests only.
 
-The server will use an internal self-signed certificate for https.
+The server will use an internal self-signed certificate for https by
+default. See below for an instruction howto use a k8s tls secret.
 
 
 ## Measure keep-alive connections
@@ -194,18 +195,13 @@ wget --no-check-certificate -qO- https://[::1]:5443/
 kahttp -address https://[::1]:5443/ -monitor -rate 400 -nclients 40 -timeout 10s | jq .
 ```
 
-If you use another client, e.g. `wget` you can verify the self-signed
+If you use another client, e.g. `curl` you can verify the self-signed
 certificate. First the "Common name" used must match the request
-url. This can be done by updating `/etc/hosts`, for example;
+url. Use the `--resolv` option, for example;
 
 ```
-127.0.1.2       kahttp.localdomain
-```
-
-Second you must provide the generated certificate to the client;
-
-```
-wget -q --ca-certificate=/tmp/server.crt -O- https://kahttp.localdomain:5443/
+curl -v --cacert /tmp/server.crt --resolv kahttp.localdomain:5443:[::1] \
+  https://kahttp.localdomain:5443/
 ```
 
 ### Client certificate, mTLS
@@ -216,39 +212,67 @@ certificate or with a correct certificate are accepted but requests
 with an invalid certificate are rejected.
 
 ```
-wget --ca-certificate=/tmp/server.crt \
- --certificate=/tmp/server.crt --private-key=/tmp/server.key \
- -qO- https://[::1]:5443/
+curl -v --cacert /tmp/server.crt --resolv kahttp.localdomain:5443:[::1] \
+  --cert /tmp/server.crt --key /tmp/server.key \
+  https://kahttp.localdomain:5443/
 ...
-Tls-nPeerCertificates: 1
+* TLSv1.2 (OUT), TLS handshake, CERT verify (15):
 ```
 
 The same certificate as for the server is presented as a client
 certificate which is valid and the (faked) header
-`Tls-nPeerCertificates` indicates that a client certificate is used.
+`CERT verify` indicates that a client certificate is used.
 
 If an invalid client certificate is used the conneciton fails;
 
 ```
-wget --ca-certificate=/tmp/server.crt \
- --certificate=/tmp/gurk.crt --private-key=/tmp/gurk.key \
- -O- https://[::1]:5443/
---2019-05-15 10:45:01--  https://[::1]:5443/
-Connecting to [::1]:5443... connected.
-OpenSSL: error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate
-Unable to establish SSL connection.
+curl --cacert /tmp/server.crt --resolv kahttp.localdomain:5443:[::1] \
+  --cert /tmp/kahttp.crt --key /tmp/kahttp.key \
+  https://kahttp.localdomain:5443/
+...
+curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate
 ```
-
 
 ### Http2
 
-The `-http2` flag can be used to enforce HTTP/2.0 on the client
-side. Note that http2 must be used with https;
+Curl uses http/2 by default, use the `--http1.1` option to enforce
+http1. Use the `-http2` flag to make the `kahttp` client to use
+http2. Note that http2 requires a secure connection (https).
 
 ```
-# (start the server as above)
-curl --insecure --http2 https://[::1]:5443/
+curl --insecure --http1.1 --resolv kahttp.localdomain:5443:[::1] https://[::1]:5443/
+
 kahttp -address https://[::1]:5443/ -monitor -http2 -rate 400 -nclients 40 -timeout 10s | jq .
+
 # This will fail since http is used;
 kahttp -address http://[::1]:5443/ -http2
+```
+
+### Use a k8s tls secret
+
+First create a k8s tls secret from the crt and key files;
+
+```
+kubectl create secret tls kahttp-secret --key /cert/kahttp.key --cert /cert/kahttp.crt
+```
+
+In the kahttp manifest mount the secret and set the KAHTTP_KEY and
+KAHTTP_CERT variables appropriately (see
+[kahttp-secret.yaml](kahttp-secret.yaml));
+
+```
+...
+        env:
+          - name: KAHTTP_KEY
+            value: "/cert/tls.key"
+          - name: KAHTTP_CERT
+            value: "/cert/tls.crt"
+        volumeMounts:
+          - name: cert
+            mountPath: "/cert"
+            readOnly: true
+      volumes:
+        - name: cert
+          secret:
+            secretName: kahttp-secret
 ```
