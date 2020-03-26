@@ -182,7 +182,7 @@ variables $KAHTTP_KEY and $KAHTTP_CERT are set). The address
 Implementation is based on [this](https://github.com/denji/golang-tls)
 description.
 
-Examle;
+Example;
 ```
 export KAHTTP_KEY=/tmp/server.key
 export KAHTTP_CERT=/tmp/server.crt
