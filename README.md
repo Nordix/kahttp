@@ -9,12 +9,8 @@ simultaneous client connectons a http server or proxy can handle.
 ## Build
 
 ```
-go get github.com/Nordix/mconnect
-cd $GOPATH/src/github.com/Nordix/kahttp
-CGO_ENABLED=0 GOOS=linux go install -a \
-  -ldflags "-extldflags '-static' -X main.version=$(date +%F:%T)" \
-  github.com/Nordix/kahttp/cmd/kahttp
-strip $GOPATH/bin/kahttp
+./build.sh image
+ls ./image/kahttp
 ```
 
 ## Usage
