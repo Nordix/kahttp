@@ -143,6 +143,28 @@ setup. When `-host_stats` is used you should most likely also disable
 keep-alive with `-disable_ka`.
 
 
+### Server access logging
+
+Access to the server can be logged (to stdout). This may be useful for
+debugging and tests of low intensity traffic such as health probing.
+
+**NOTE:** Extensive logging will affect performance.
+
+Server access logging is initiated with the `-log-access` parameter or
+the `$LOG_ACCESS` environment variable. The parameter specifies a
+sub-path to be logged or "/" to log everything.
+
+```
+$ ./image/kahttp -server -address :7000 -log-access /metrics
+2020-07-11 13:02:39; localhost:7000/metrics from 127.0.0.1:43660
+2020-07-11 13:02:39; localhost:7000/metrics from 127.0.0.1:43662
+2020-07-11 13:02:39; localhost:7000/metrics from 127.0.0.1:43664
+...
+```
+
+The log format is "date; <host/path> from <remote_addr>".
+
+
 ## Multiple source addresses
 
 For testing of very many connections it is essential that the

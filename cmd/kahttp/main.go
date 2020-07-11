@@ -58,6 +58,7 @@ type config struct {
 	httpsKey  *string
 	httpsCert *string
 	httpsAddr *string
+	logAccess *string
 }
 
 const hostHeader = "X-Kahttp-Server-Host"
@@ -87,6 +88,8 @@ func main() {
 	cmd.httpsCert = flag.String(
 		"https_cert", os.Getenv("KAHTTP_CERT"), "Https certificate file")
 	cmd.httpsAddr = flag.String("https_addr", ":5443", "Https address")
+	cmd.logAccess = flag.String(
+		"log-access", os.Getenv("LOG_ACCESS"), "Log access (server only)")
 
 	flag.Parse()
 	if len(os.Args) < 2 {
@@ -384,12 +387,19 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 // ----------------------------------------------------------------------
 // Server
 
-type myHandler string
+type myHandler struct {
+	serverHdr string
+	logAccess string
+	mutex     sync.Mutex
+}
 
 func (c *config) serverMain() int {
-	var serverHdr = "Kahttp/" + version
+	var serverEnv = myHandler{
+		serverHdr: "Kahttp/" + version,
+		logAccess: *c.logAccess,
+	}
 	if hostName, err := os.Hostname(); err == nil {
-		serverHdr += ("@" + hostName)
+		serverEnv.serverHdr += ("@" + hostName)
 	}
 	if *c.httpsKey != "" && *c.httpsCert != "" {
 
@@ -411,7 +421,7 @@ func (c *config) serverMain() int {
 
 		s := &http.Server{
 			Addr:			*c.httpsAddr,
-			Handler:		myHandler(serverHdr),
+			Handler:		myHandler(serverEnv),
 			ReadTimeout:	10 * time.Second,
 			WriteTimeout:	10 * time.Second,
 			IdleTimeout:	10 * time.Second,
@@ -429,7 +439,7 @@ func (c *config) serverMain() int {
 
 	s := &http.Server{
 		Addr:           *c.addr,
-		Handler:        myHandler(serverHdr),
+		Handler:        myHandler(serverEnv),
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    10 * time.Second,
@@ -443,7 +453,7 @@ func (c *config) serverMain() int {
 }
 
 func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(hostHeader, string(x))
+	w.Header().Set(hostHeader, x.serverHdr)
 	fmt.Fprintf(w, "Method: %s\n", r.Method)
 	fmt.Fprintf(w, "URL: %s\n", r.URL)
 	fmt.Fprintf(w, "Proto: %s\n", r.Proto)
@@ -458,6 +468,11 @@ func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s: %s\n", hostHeader, x)
 	for k, v := range r.Header {
 		fmt.Fprintf(w, "%s: %s\n", k, v)
+	}
+	if x.logAccess != "" && strings.HasPrefix(r.RequestURI, x.logAccess) {
+		x.mutex.Lock()
+		fmt.Printf("%s; %s%s from %s\n", time.Now().Format("2006-01-02 15:04:05"), r.Host, r.RequestURI, r.RemoteAddr)
+		x.mutex.Unlock()
 	}
 }
 
