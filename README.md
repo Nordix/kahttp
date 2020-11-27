@@ -185,6 +185,20 @@ kahttp -address http://127.0.0.1:5080/ -monitor -rate 400 -nclients 40 \
   -timeout 10s -scrcidr 222.222.222.0/24
 ```
 
+## Set source address
+
+Some times the source address must be set for instance to use a
+specific ip-family as described in [#6](https://github.com/Nordix/kahttp/issues/6).
+
+The `-scrcidr` can be used for this purpose but with masks /32 and /128;
+
+```
+$ kahttp kahttp -address http://vm-001/cgi-bin/info -monitor -timeout 5s -srccidr 192.168.1.3/32
+... (ipv4 used)
+$ kahttp kahttp -address http://vm-001/cgi-bin/info -monitor -timeout 5s -srccidr 1000::1:c0a8:103/128
+... (ipv6 used)
+```
+
 ## Https
 
 `Kahttp` disables certificate verification because the server is most
