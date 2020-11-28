@@ -277,6 +277,9 @@ curl --insecure --http1.1 --resolv kahttp.localdomain:5443:[::1] https://[::1]:5
 kahttp -address https://[::1]:5443/ -monitor -http2 -rate 400 -nclients 40 -timeout 10s | jq .
 
 # This will use h2c;
+curl -D - --http2 http://[::1]:5443/
+
+# This will not work;
 kahttp -address http://[::1]:5443/ -http2
 ```
 
