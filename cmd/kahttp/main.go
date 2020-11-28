@@ -465,7 +465,7 @@ func (x myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil && r.TLS.PeerCertificates != nil {
 		fmt.Fprintf(w, "Tls-nPeerCertificates: %d\n", len(r.TLS.PeerCertificates))
 	}
-	fmt.Fprintf(w, "%s: %s\n", hostHeader, x)
+	fmt.Fprintf(w, "%s: %s\n", hostHeader, x.serverHdr)
 	for k, v := range r.Header {
 		fmt.Fprintf(w, "%s: %s\n", k, v)
 	}
