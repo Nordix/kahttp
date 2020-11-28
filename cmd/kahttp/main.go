@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"github.com/Nordix/mconnect/pkg/rndip"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"golang.org/x/time/rate"
 	"io/ioutil"
 	"log"
@@ -414,19 +415,19 @@ func (c *config) serverMain() int {
 		// Create the TLS Config with the CA pool and enable Client
 		// certificate validation
 		tlsConfig := &tls.Config{
-			ClientCAs: caCertPool,
+			ClientCAs:  caCertPool,
 			ClientAuth: tls.VerifyClientCertIfGiven,
 		}
 		tlsConfig.BuildNameToCertificate()
 
 		s := &http.Server{
-			Addr:			*c.httpsAddr,
-			Handler:		myHandler(serverEnv),
-			ReadTimeout:	10 * time.Second,
-			WriteTimeout:	10 * time.Second,
-			IdleTimeout:	10 * time.Second,
+			Addr:           *c.httpsAddr,
+			Handler:        myHandler(serverEnv),
+			ReadTimeout:    10 * time.Second,
+			WriteTimeout:   10 * time.Second,
+			IdleTimeout:    10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
-			TLSConfig: tlsConfig,
+			TLSConfig:      tlsConfig,
 		}
 		if *c.disableKA {
 			s.SetKeepAlivesEnabled(false)
@@ -437,9 +438,10 @@ func (c *config) serverMain() int {
 		}()
 	}
 
+	h2s := &http2.Server{}
 	s := &http.Server{
 		Addr:           *c.addr,
-		Handler:        myHandler(serverEnv),
+		Handler:        h2c.NewHandler(myHandler(serverEnv), h2s),
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    10 * time.Second,
