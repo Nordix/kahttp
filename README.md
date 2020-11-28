@@ -269,14 +269,14 @@ curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certifica
 
 Curl uses http/2 by default, use the `--http1.1` option to enforce
 http1. Use the `-http2` flag to make the `kahttp` client to use
-http2. Note that http2 requires a secure connection (https).
+http2. Http2 used on a clear-text connection (http) is converted to h2c.
 
 ```
 curl --insecure --http1.1 --resolv kahttp.localdomain:5443:[::1] https://[::1]:5443/
 
 kahttp -address https://[::1]:5443/ -monitor -http2 -rate 400 -nclients 40 -timeout 10s | jq .
 
-# This will fail since http is used;
+# This will use h2c;
 kahttp -address http://[::1]:5443/ -http2
 ```
 
