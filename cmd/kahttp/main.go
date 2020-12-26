@@ -234,7 +234,6 @@ func (c *config) client(ctx context.Context, wg *sync.WaitGroup, s *statistics) 
 
 		s.failedConnection(1)
 	}
-
 }
 
 func monitor(s *statistics) {
@@ -379,6 +378,10 @@ func (c *httpConn) Run(ctx context.Context, s *statistics) error {
 			return err
 		}
 
+		if resp.StatusCode != 200 {
+			s.notok(1)
+		}
+
 		s.received(1)
 	}
 
@@ -494,6 +497,7 @@ type statistics struct {
 	FailedConnects    uint
 	mutex             sync.Mutex
 	Hosts             map[string]int `json:",omitempty"`
+	NotOK             uint32
 }
 
 type sample struct {
@@ -533,6 +537,9 @@ func (s *statistics) dropped(n uint32) {
 }
 func (s *statistics) failedConnection(n uint32) {
 	atomic.AddUint32(&s.FailedConnections, n)
+}
+func (s *statistics) notok(n uint32) {
+	atomic.AddUint32(&s.NotOK, n)
 }
 
 func (s *statistics) reportStats() {
