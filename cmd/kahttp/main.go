@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Nordix/mconnect/pkg/rndip"
+	rndip "github.com/Nordix/mconnect/pkg/rndip/v2"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"golang.org/x/time/rate"

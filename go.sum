@@ -1,5 +1,5 @@
-github.com/Nordix/mconnect v0.0.0-20200306100551-f087438d947b h1:7zoNd6a1gL2P0NpuAvkQKTVsia5Y4VBGkKnwrbfmDOg=
-github.com/Nordix/mconnect v0.0.0-20200306100551-f087438d947b/go.mod h1:AwioGg8vEWEVnUuKHZgJGJegSv0K9dIhc+CHwNi0uIo=
+github.com/Nordix/mconnect/pkg/rndip/v2 v2.0.0-20210214133139-d0fb693d0599 h1:fxFF22LN+tTb3B0Z0rVWw1gxfhQEGW72dLkOGmV1lcI=
+github.com/Nordix/mconnect/pkg/rndip/v2 v2.0.0-20210214133139-d0fb693d0599/go.mod h1:JbNTxVTSoYTxcm7PE9Ulg+lIDjti5Ek/tnIg635rKvI=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e h1:3G+cUijn7XD+S4eJFddp53Pv7+slrESplyjG25HgL+k=
 golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e/go.mod h1:qpuaurCH72eLCgpAm/N6yyVIVM9cpaDIP3A8BGJEC5A=
