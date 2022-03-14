@@ -7,7 +7,14 @@
 ##
 
 prg=$(basename $0)
-dir=$(dirname $0); dir=$(readlink -f $dir)
+dir=$(dirname $0)
+if [ "$(uname)" = Darwin ] ; then
+	if [ -s "$dir" ]; then
+		dir=$(stat -f%Y "$0")
+	fi
+else
+	dir=$(readlink -f "$dir")
+fi
 tmp=/tmp/${prg}_$$
 
 die() {
@@ -49,7 +56,11 @@ cmd_image() {
 	GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
 		go build -ldflags "-extldflags '-static' -X main.version=$__version" \
 		-o image/kahttp ./cmd/... || die "Build failed"
-	strip image/kahttp
+	if [ "$(uname)" = Darwin ] ; then
+		log "Not stripping image/kahttp: not supported on macOS"
+	else
+		strip image/kahttp
+	fi
 	docker build -t $__image:$__version .
 }
 
