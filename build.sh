@@ -36,6 +36,7 @@ dbg() {
 cmd_env() {
 	test -n "$__image" || __image=registry.nordix.org/cloud-native/kahttp
 	test -n "$__version" || __version=latest
+	test -n "$__localpath" || __localpath=build/kahttp
 	test "$cmd" = "env" && set | grep -E '^(__.*)='
 }
 
@@ -50,6 +51,15 @@ cmd_image() {
 		-o image/kahttp ./cmd/... || die "Build failed"
 	strip image/kahttp
 	docker build -t $__image:$__version .
+}
+
+##  local [--localpath=build/kahttp]
+##    Build the "kahttp" binary for local usage.
+##
+cmd_local() {
+	cmd_env
+	mkdir -p build
+	go build -o $__localpath/kahttp ./cmd/... || die "Build failed"
 }
 
 
