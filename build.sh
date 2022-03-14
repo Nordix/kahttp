@@ -45,12 +45,7 @@ cmd_env() {
 ##
 cmd_image() {
 	cmd_env
-	mkdir -p image
-	GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
-		go build -ldflags "-extldflags '-static' -X main.version=$__version" \
-		-o image/kahttp ./cmd/... || die "Build failed"
-	strip image/kahttp
-	docker build -t $__image:$__version .
+	docker build --build-arg version=$__version -t $__image:$__version .
 }
 
 ##  local [--localpath=build/kahttp]
