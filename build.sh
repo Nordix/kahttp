@@ -7,7 +7,11 @@
 ##
 
 prg=$(basename $0)
-dir=$(dirname $0); dir=$(readlink -f $dir)
+if uname | grep -q Darwin ; then
+	test -s "$dir" && dir=$(stat -f%Y "$0")
+else
+	dir=$(readlink -f "$dir")
+fi
 tmp=/tmp/${prg}_$$
 
 die() {
@@ -49,7 +53,7 @@ cmd_image() {
 	GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
 		go build -ldflags "-extldflags '-static' -X main.version=$__version" \
 		-o image/kahttp ./cmd/... || die "Build failed"
-	strip image/kahttp
+	uname | grep -q Darwin || strip image/kahttp
 	docker build -t $__image:$__version .
 }
 
